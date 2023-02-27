@@ -65,6 +65,15 @@ var job = new CronJob(
 
 client.on("messageCreate", async (message) => {
 	if (message.author.bot) return;
+	if (message.content === '!help')
+	{
+		message.channel.send('!dailyHeathcliff: posts Heathcliff comic for todays date');
+		message.channel.send('!randomHeathcliff: posts a random Heathcliff from the vault');
+		message.channel.send('!addDaily: this channel will receive the daily Heathcliff comic every morning at 9am CST');
+		message.channel.send('!removeDaily: this channel will no longer receive the daily Heathcliff comic. Note- if you have done !addDaily more than once on this channel and wish to remove every instance, you will have to !removeDaily more than once');
+		return;
+	}
+	
 	if (message.content === '!dailyHeathcliff') {
 		var today = new Date();
 		var dd = String(today.getDate()).padStart(2, '0');
@@ -96,6 +105,7 @@ client.on("messageCreate", async (message) => {
 	if (message.content === '!howManyServers')
 	{
 		await message.channel.send("I'm in " + client.guilds.cache.size + " servers!");
+		return;
 	}
 	
 	if (message.content === '!addDaily')
@@ -116,6 +126,7 @@ client.on("messageCreate", async (message) => {
 		fs.appendFile('channels.txt',channelId +"\r\n", function (err) {
 			//ir (err) throw err;
 		});
+		return;
 	}
 	
 	if (message.content === '!removeDaily')
@@ -128,6 +139,7 @@ client.on("messageCreate", async (message) => {
 
 		var newValue = data.replace(channelId + "\r\n", '');
 		fs.writeFileSync('channels.txt', newValue, 'utf-8');
+		return;
 	}
 	
 	if (message.content === '!readChannels')
@@ -138,6 +150,7 @@ client.on("messageCreate", async (message) => {
 			// Display the file content
 			message.channel.send(data);
 		});
+		return;
 	}
 	
 	
