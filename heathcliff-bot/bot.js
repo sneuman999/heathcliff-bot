@@ -14,7 +14,7 @@ const client = new Client({
 		
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
-	const channel = client.channels.cache.get('549738642713870349');
+	//const channel = client.channels.cache.get('549738642713870349');
 	//1049795501400264765 
 	//console.log(channel.id);
 });
@@ -23,16 +23,40 @@ var CronJob = require('cron').CronJob;
 var job = new CronJob(
 	'00 00 09 * * *',
 	function() {
-		const channel = client.channels.cache.get('549738642713870349');
-		var today = new Date();
-		var dd = String(today.getDate()).padStart(2, '0');
-		var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
-		var yyyy = today.getFullYear();
+		
+		const fs = require('fs');
+		const readline = require('readline');
+		
+		// Creating a readable stream from file
+		// readline module reads line by line 
+		// but from a readable stream only.
+		const file = readline.createInterface({
+			input: fs.createReadStream('channels.txt'),
+			output: process.stdout,
+			terminal: false
+		});
+  
+		// Printing the content of file line by
+		//  line to console by listening on the
+		// line event which will triggered
+		// whenever a new line is read from
+		// the stream
+		file.on('line', (line) => {
+
+			const channel = client.channels.cache.get(line);
+			var today = new Date();
+			var dd = String(today.getDate()).padStart(2, '0');
+			var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+			var yyyy = today.getFullYear();
 			
-		randomDate = yyyy + '/' + mm + '/' + dd;
-		var url = String('https://www.gocomics.com/heathcliff/' + yyyy + '/' + mm + '/' + dd);
+			randomDate = yyyy + '/' + mm + '/' + dd;
+			var url = String('https://www.gocomics.com/heathcliff/' + yyyy + '/' + mm + '/' + dd);
 			
-		channel.send(url);
+			try { channel.send(url) } catch (err) {}
+		});
+		
+		
+
 	},
 	null,
 	true,
@@ -68,15 +92,56 @@ client.on("messageCreate", async (message) => {
 		message.channel.send(url);
 		return;
 	}
-	if (message.content ==='!config')
+	
+	if (message.content === '!howManyServers')
 	{
-
-		await client.guilds.cache.fetch();
-		let serverCount = client.guilds.cache.size;
-		message.channel.send(serverCount);
-		
+		await message.channel.send("I'm in " + client.guilds.cache.size + " servers!");
 	}
-	if (message.content.includes("ape") || message.content.includes("monke"))
+	
+	if (message.content === '!addDaily')
+	{
+		message.channelId.get;
+		message.channel.name.get;
+		const channelId = message.channelId;
+		const channelName = message.channel.name;
+		message.channel.send(channelName + " will now get the Daily Heathcliff comic at 9am CST every day!");
+		
+		const fs = require('fs');
+		//fs.readFile('channels.txt', 'utf8', function(err, data){
+      
+			// Display the file content
+			//message.channel.send(data);
+		//});
+		
+		fs.appendFile('channels.txt',channelId +"\r\n", function (err) {
+			//ir (err) throw err;
+		});
+	}
+	
+	if (message.content === '!removeDaily')
+	{
+		const fs = require('fs');
+		message.channelId.get;
+		const channelId = message.channelId;
+		
+		var data = fs.readFileSync('channels.txt', 'utf-8');
+
+		var newValue = data.replace(channelId + "\r\n", '');
+		fs.writeFileSync('channels.txt', newValue, 'utf-8');
+	}
+	
+	if (message.content === '!readChannels')
+	{
+		const fs = require('fs');
+		fs.readFile('channels.txt', 'utf8', function(err, data){
+      
+			// Display the file content
+			message.channel.send(data);
+		});
+	}
+	
+	
+	if (message.content ==='!randomApe')
 	{
 		message.channel.send("Behold the Garbage Ape!");
 		var randomNum = Math.floor(Math.random()*21)+1;
