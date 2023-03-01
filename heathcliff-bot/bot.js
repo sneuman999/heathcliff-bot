@@ -10,7 +10,6 @@ const client = new Client({
 		GatewayIntentBits.GuildMembers,
 	],
 });
-
 		
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
@@ -52,7 +51,13 @@ var job = new CronJob(
 			randomDate = yyyy + '/' + mm + '/' + dd;
 			var url = String('https://www.gocomics.com/heathcliff/' + yyyy + '/' + mm + '/' + dd);
 			
-			try { channel.send(url) } catch (err) {}
+			try { 
+			channel.send(url);
+			}
+			catch (err) {
+				console.log("I experienced a message error on the Daily");
+				return;
+			}
 		});
 		
 		
@@ -63,14 +68,23 @@ var job = new CronJob(
 	'America/Chicago'
 );
 
+
 client.on("messageCreate", async (message) => {
+	
 	if (message.author.bot) return;
-	if (message.content === '!help')
-	{
-		message.channel.send('!dailyHeathcliff: posts Heathcliff comic for todays date');
-		message.channel.send('!randomHeathcliff: posts a random Heathcliff from the vault');
-		message.channel.send('!addDaily: this channel will receive the daily Heathcliff comic every morning at 9am CST');
-		message.channel.send('!removeDaily: this channel will no longer receive the daily Heathcliff comic. Note- if you have done !addDaily more than once on this channel and wish to remove every instance, you will have to !removeDaily more than once');
+	
+	if (message.content === '!HamBot') {
+		try {
+			await message.channel.send('!dailyHeathcliff: posts Heathcliff comic for todays date');
+			await message.channel.send('!randomHeathcliff: posts a random Heathcliff from the vault');
+			await message.channel.send('!addDaily: this channel will receive the daily Heathcliff comic every morning at 9am CST');
+			await message.channel.send('!removeDaily: this channel will no longer receive the daily Heathcliff comic. Note- if you have done !addDaily more than once on this channel and wish to remove every instance, you will have to !removeDaily more than once');
+		}
+		catch (err) {
+			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
+			console.log("I experienced a message error");
+			return;
+		}
 		return;
 	}
 	
@@ -84,11 +98,18 @@ client.on("messageCreate", async (message) => {
 	
 		var url = String('https://www.gocomics.com/heathcliff/' + yyyy + '/' + mm + '/' + dd);
 	
-		message.channel.send(url);
+		try {
+			await message.channel.send(url); 
+		} 
+		catch(err){
+			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
+			console.log("I experienced a message error");
+			return;
+		}
 		return;
 	}
-	if (message.content ==='!randomHeathcliff')
-	{
+	
+	if (message.content ==='!randomHeathcliff') {
 		var today = new Date();
 		var randomDate = new Date();
 		var dd = String(Math.floor(Math.random() * 28) + 1);
@@ -98,23 +119,48 @@ client.on("messageCreate", async (message) => {
 		randomDate = yyyy + '/' + mm + '/' + dd;
 		var url = String('https://www.gocomics.com/heathcliff/' + yyyy + '/' + mm + '/' + dd);
 			
-		message.channel.send(url);
+		try {
+			await message.channel.send(url); 
+		} 
+		catch(err){
+			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
+			console.log("I experienced a message error");
+			return;
+		}
 		return;
 	}
 	
-	if (message.content === '!howManyServers')
-	{
-		await message.channel.send("I'm in " + client.guilds.cache.size + " servers!");
-		return;
+	if (message.content === '!howManyServers') {
+		message.channelId.get;
+		const channelId = message.channelId;
+		
+		if (channelId === '1049795501400264765') {
+			try {
+				await message.channel.send("I'm in " + client.guilds.cache.size + " servers!");
+			}
+			catch(err){
+				await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
+				console.log("I experienced a message error");
+				return;
+			}
+		}
+			return;
 	}
 	
-	if (message.content === '!addDaily')
-	{
+	if (message.content === '!addDaily') {
 		message.channelId.get;
 		message.channel.name.get;
 		const channelId = message.channelId;
 		const channelName = message.channel.name;
-		message.channel.send(channelName + " will now get the Daily Heathcliff comic at 9am CST every day!");
+		
+		try {
+			await message.channel.send(channelName + " will now get the Daily Heathcliff comic at 9am CST every day!");
+		}
+		catch(err){
+			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
+			console.log("I experienced a message error");
+			return;
+		}
 		
 		const fs = require('fs');
 		//fs.readFile('channels.txt', 'utf8', function(err, data){
@@ -124,42 +170,60 @@ client.on("messageCreate", async (message) => {
 		//});
 		
 		fs.appendFile('channels.txt',channelId +"\r\n", function (err) {
-			//ir (err) throw err;
+			if (err) throw err;
 		});
 		return;
 	}
 	
-	if (message.content === '!removeDaily')
-	{
+	if (message.content === '!removeDaily') {
 		const fs = require('fs');
 		message.channelId.get;
+		message.channel.name.get;
 		const channelId = message.channelId;
+		const channelName = message.channel.name;
+		
+		try {
+			await message.channel.send(channelName + " will no longer get the Daily Heathcliff comic ever day.");
+		}
+		catch(err){
+			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
+			console.log("I experienced a message error");
+			return;
+		}
 		
 		var data = fs.readFileSync('channels.txt', 'utf-8');
 
 		var newValue = data.replace(channelId + "\r\n", '');
 		fs.writeFileSync('channels.txt', newValue, 'utf-8');
+	}
+	
+	if (message.content === '!readChannels') {
+		
+		message.channelId.get;
+		const channelId = message.channelId;
+		
+		if (channelId === '1049795501400264765') {
+					const fs = require('fs');
+			
+			fs.readFile('channels.txt', 'utf8', function(err, data){
+				try {
+					message.channel.send(data);
+				}
+				catch(err){
+					message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
+					console.log("I experienced a message error");
+					return;					
+				}
+			});
+		}
 		return;
 	}
 	
-	if (message.content === '!readChannels')
-	{
-		const fs = require('fs');
-		fs.readFile('channels.txt', 'utf8', function(err, data){
-      
-			// Display the file content
-			message.channel.send(data);
-		});
-		return;
-	}
-	
-	
-	if (message.content ==='!randomApe')
-	{
-		message.channel.send("Behold the Garbage Ape!");
-		var randomNum = Math.floor(Math.random()*21)+1;
-		var date;
-		switch(randomNum){
+	if (message.content ==='!randomApe') {
+		try {
+			var randomNum = Math.floor(Math.random()*21)+1;
+			var date;
+			switch(randomNum){
 			case 1:
 			date = "2013/10/15";
 			break;
@@ -227,12 +291,17 @@ client.on("messageCreate", async (message) => {
 			date = "2019/02/24";
 			break;		
 		}
-		var url = String('https://www.gocomics.com/heathcliff/' + date);
-		message.channel.send(url);
+			var url = String('https://www.gocomics.com/heathcliff/' + date);
+			await message.channel.send("Behold the Garbage Ape!");
+			await message.channel.send(url);
+		}
+		catch(err){
+			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
+			console.log("I experienced a message error");
+			return;
+		}
 		return;
 	}
-
-	
 })
 
 client.login(process.env.DISCORD_TOKEN);
