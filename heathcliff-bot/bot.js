@@ -75,10 +75,10 @@ client.on("messageCreate", async (message) => {
 	
 	if (message.content === '!HamBot') {
 		try {
-			await message.channel.send('!dailyHeathcliff: posts Heathcliff comic for todays date');
-			await message.channel.send('!randomHeathcliff: posts a random Heathcliff from the vault');
-			await message.channel.send('!addDaily: this channel will receive the daily Heathcliff comic every morning at 9am CST');
-			await message.channel.send('!removeDaily: this channel will no longer receive the daily Heathcliff comic. Note- if you have done !addDaily more than once on this channel and wish to remove every instance, you will have to !removeDaily more than once');
+			await message.channel.send('!dailyHeathcliff: posts Heathcliff comic for todays date.');
+			await message.channel.send('!randomHeathcliff: posts a random Heathcliff comic from the vault.');
+			await message.channel.send('!addDaily: this channel will receive the daily Heathcliff comic every morning at 9am CST.');
+			await message.channel.send('!removeDaily: this channel will no longer receive the daily Heathcliff comic.');
 		}
 		catch (err) {
 			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
@@ -148,29 +148,36 @@ client.on("messageCreate", async (message) => {
 	}
 	
 	if (message.content === '!addDaily') {
-		message.channelId.get;
+		await message.channelId.get;
 		message.channel.name.get;
 		const channelId = message.channelId;
 		const channelName = message.channel.name;
 		
-		try {
-			await message.channel.send(channelName + " will now get the Daily Heathcliff comic at 9am CST every day!");
-		}
-		catch(err){
-			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
-			console.log("I experienced a message error");
-			return;
-		}
-		
 		const fs = require('fs');
-		//fs.readFile('channels.txt', 'utf8', function(err, data){
-      
-			// Display the file content
-			//message.channel.send(data);
-		//});
-		
-		fs.appendFile('channels.txt',channelId +"\r\n", function (err) {
-			if (err) throw err;
+		fs.readFile('channels.txt', 'utf8', function(err, data){
+			if(!(data.includes(channelId))){
+				try {
+					message.channel.send(channelName + " will now receive the daily Heathcliff comic at 9am CST every day!");
+					fs.appendFile('channels.txt',channelId +"\r\n", function (err) {
+						if (err) throw err;
+					});
+				}
+				catch(err){
+					message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
+					console.log("I experienced a message error");
+					return;
+				}
+			}
+			else {
+				try {
+					message.channel.send(channelName + " is already receiving the daily Heathcliff comic at 9am CST every day!");
+				}
+				catch(err){
+					message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
+					console.log("I experienced a message error");
+					return;
+				}
+			}
 		});
 		return;
 	}
@@ -183,7 +190,7 @@ client.on("messageCreate", async (message) => {
 		const channelName = message.channel.name;
 		
 		try {
-			await message.channel.send(channelName + " will no longer get the Daily Heathcliff comic ever day.");
+			await message.channel.send(channelName + " will no longer receive the daily Heathcliff comic.");
 		}
 		catch(err){
 			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
