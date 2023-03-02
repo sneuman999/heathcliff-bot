@@ -226,7 +226,7 @@ client.on("messageCreate", async (message) => {
 		return;
 	}
 	
-	if (message.content ==='!randomApe') {
+	if (message.content ==='!garbageApe') {
 		try {
 			var randomNum = Math.floor(Math.random()*21)+1;
 			var date;
