@@ -100,6 +100,7 @@ client.on("messageCreate", async (message) => {
 	
 		try {
 			await message.channel.send(url); 
+			console.log("I posted the Daily Heathcliff");
 		} 
 		catch(err){
 			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
@@ -120,7 +121,8 @@ client.on("messageCreate", async (message) => {
 		var url = String('https://www.gocomics.com/heathcliff/' + yyyy + '/' + mm + '/' + dd);
 			
 		try {
-			await message.channel.send(url); 
+			await message.channel.send(url);
+			console.log("I posted a random Heathcliff"); 
 		} 
 		catch(err){
 			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
@@ -226,7 +228,7 @@ client.on("messageCreate", async (message) => {
 		return;
 	}
 	
-	if (message.content ==='!garbageApe') {
+	if (message.content ==='!randomApe') {
 		try {
 			var randomNum = Math.floor(Math.random()*21)+1;
 			var date;
