@@ -1,0 +1,40 @@
+HamBot ToS and Privacy Policy
+
+Terms of Service:
+
+*Usage Agreement*
+By inviting the bot and using its features (commands, scheduled messages) you are agreeing to the below mentioned Terms and Privacy Policy (Policy) of the bot.
+You acknowledge that you have the privilege to use the bot freely on any Discord Server (Server) you sharee with it, that you can invite it to any Server that you have "Manage Server" rights for and that this privilege might be revoked if you are found to be breaking the terms and/or policy of this bot, or the Terms of Service, Privacy Policy, and/or Community Guidelines of Discord Inc.
+Using any kind of automated means, including macros, in order to send commands to HamBot is strictly forbidden.
+By inviting this bot you agree that it may collect specific data as described in its Policy.
+The intended usage of this data is for core functionalities of the bot such as scheduled posting.
+
+*Intended Age*
+The bot may not be used by indivduals under the minimal age described in Discord's Terms of Service.
+
+*Affiliation*
+HamBot is not affiliated with, supported or made by Discord Inc.
+Any direct connection to Discord or any of its Trademark objects is purely coincidental. We do not claim to have the copyright ownership of any of Discord's assets, trademarks, or other intellectual property.
+
+*Liability*
+The owner of the bot may not be held liable for individuals breaking Terms at any given time.
+We reserve the right to update these terms at our own discretion.
+
+*Contact*
+We can be contacted through hambotdiscord@gmail.com with any questions on the above Terms of Service.
+
+
+Privacy Policy:
+
+*Usage of Data*
+HamBot may use stored data, as defined below, for different features including but not limited to: scheduled message posting.
+No usage of data will ever be shared with any 3rd party site or service.
+
+*Stored Information*
+The bot may store Channel ID information when the !addDaily command is used. 
+No other information will be stored.
+
+*Removal of Data*
+Stored Data can be removed automatically through means of removing the bot from the server. This can be achieved by either kicking or banning the bot from the server. Allow 24 hours after bot removal for data to be removed.
+Manual removal of data can be achieved by using the !removeDaily command in the channel that is scheduled for messaging.
+For any other questions relating to storage of data, more information can be requested through email at hambotdiscord@gmail.com.
