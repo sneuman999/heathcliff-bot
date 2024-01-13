@@ -79,6 +79,7 @@ client.on("messageCreate", async (message) => {
 			await message.channel.send('!randomHeathcliff: posts a random Heathcliff comic from the vault.');
 			await message.channel.send('!addDaily: this channel will receive the daily Heathcliff comic every morning at 9am CST.');
 			await message.channel.send('!removeDaily: this channel will no longer receive the daily Heathcliff comic.');
+			await message.channel.send('!hambotSupport: gives links for HamBot support.')
 		}
 		catch (err) {
 			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
@@ -227,6 +228,18 @@ client.on("messageCreate", async (message) => {
 		}
 		return;
 	}
+
+	if (message.content === '!hambotSupport') {
+		try {
+			await message.channel.send("ToS and Privacy Policy: https://github.com/sneuman999/heathcliff-bot/blob/104307fae98c852c671f8b8e27c1f5e02eb51fc2/ToS%20and%20Privacy%20Policy");
+			await message.channel.send("For support questions, contact hambotdiscord@gmail.com.");
+		}
+		catch (err) {
+			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
+			console.log("I experienced a message error");
+			return;
+		}
+    }
 	
 	if (message.content ==='!randomApe') {
 		try {
