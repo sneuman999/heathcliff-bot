@@ -1,7 +1,9 @@
 // Run dotenv
 require('dotenv').config();
 
-const { Client, GatewayIntentBits } = require('discord.js');
+const fs = require('node:fs');
+const path = require('node:path');
+const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 const client = new Client({
 	intents: [
 		GatewayIntentBits.Guilds,
@@ -10,12 +12,52 @@ const client = new Client({
 		GatewayIntentBits.GuildMembers,
 	],
 });
+const { clientId, guildId, token, testChannelId } = require('./config.json');
+
+client.commands = new Collection();
+
+const foldersPath = path.join(__dirname, 'commands');
+const commandFolders = fs.readdirSync(foldersPath);
+
+for (const folder of commandFolders) {
+	const commandsPath = path.join(foldersPath, folder);
+	const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+	for (const file of commandFiles) {
+		const filePath = path.join(commandsPath, file);
+		const command = require(filePath);
+		// Set a new item in the Collection with the key as the command name and the value as the exported module
+		if ('data' in command && 'execute' in command) {
+			client.commands.set(command.data.name, command);
+		} else {
+			console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+		}
+	}
+}
+
+client.on(Events.InteractionCreate, async interaction => {
+	if (!interaction.isChatInputCommand()) return;
+
+	const command = interaction.client.commands.get(interaction.commandName);
+
+	if (!command) {
+		console.error(`No command matching ${interaction.commandName} was found.`);
+		return;
+	}
+
+	try {
+		await command.execute(interaction);
+	} catch (error) {
+		console.error(error);
+		if (interaction.replied || interaction.deferred) {
+			await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+		} else {
+			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+		}
+	}
+});
 		
-client.on('ready', () => {
-    console.log(`Logged in as ${client.user.tag}!`);
-	//const channel = client.channels.cache.get('549738642713870349');
-	//1049795501400264765 
-	//console.log(channel.id);
+client.on('ready', async () => {
+	console.log(`Logged in as ${client.user.tag}!`);
 });
 
 var CronJob = require('cron').CronJob;
@@ -137,7 +179,7 @@ client.on("messageCreate", async (message) => {
 		message.channelId.get;
 		const channelId = message.channelId;
 		
-		if (channelId === '1049795501400264765') {
+		if (channelId === testChannelId) {
 			try {
 				await message.channel.send("I'm in " + client.guilds.cache.size + " servers!");
 			}
@@ -212,7 +254,7 @@ client.on("messageCreate", async (message) => {
 		message.channelId.get;
 		const channelId = message.channelId;
 		
-		if (channelId === '1049795501400264765') {
+		if (channelId === testChannelId) {
 					const fs = require('fs');
 			
 			fs.readFile('channels.txt', 'utf8', function(err, data){
@@ -326,4 +368,4 @@ client.on("messageCreate", async (message) => {
 	}
 })
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(token);
