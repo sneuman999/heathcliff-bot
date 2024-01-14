@@ -19,8 +19,13 @@ module.exports = {
 		}
 
 		var data = fs.readFileSync('channels.txt', 'utf-8');
+		var dataSplit = data.split('\r\n');
+		console.log(dataSplit);
+		const filteredArray = dataSplit.filter(item => !item.includes(channelId));
 
-		var newValue = data.replace(channelId + "\r\n", '');
+		console.log(filteredArray);
+
+		var newValue = filteredArray.join('\r\n');
 		fs.writeFileSync('channels.txt', newValue, 'utf-8');
 	},
 };
