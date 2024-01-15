@@ -64,7 +64,7 @@ var cron = require('node-cron');
 cron.schedule('00 00 * * * *', async () => {
 	const date = new Date();
 	const hour = date.getHours();
-	const hourString = hour.toString();
+	let hourString = hour.toString();
 
 	if (hourString.length == 1) {
 		hourString = '0' + hourString;
@@ -106,7 +106,6 @@ function cronDaily(cronTime) {
 			var url = String('https://www.gocomics.com/heathcliff/' + yyyy + '/' + mm + '/' + dd);
 			try {
 				await channel.send(url);
-				await channel.send("** HamBot Announcment:** Hi HamBot users! With HamBot turning 1 year old and reaching almost 100 servers(thanks by the way!), it is in dire need of an upgrade.\nAs part of this upgrade, all '!' commands(ex. !dailyHeathcliff) have been replaced with '/' commands.You may not see these '/' commands in your server right now.If you do not, please kick the bot and re - invite it using this link: \nhttps://discord.com/oauth2/authorize?client_id=1049789473254285332&permissions=19456&scope=bot\nThanks for using HamBot, and keep Hamposting!");
 			}
 			catch (error) {
 				console.log("I experienced an error posting the daily.");
@@ -126,7 +125,7 @@ client.on("messageCreate", async (message) => {
 	if (message.content === '!HamBot') {
 		try {
 			await message.channel.send('!dailyHeathcliff: posts Heathcliff comic for todays date.\n!randomHeathcliff: posts a random Heathcliff comic from the vault.\n!addDaily: this channel will receive the daily Heathcliff comic every morning at 9am CST.\n!removeDaily: this channel will no longer receive the daily Heathcliff comic.\n!hambotSupport: gives links for HamBot support.');
-			await message.channel.send("'!' commands will be disabled January 21. Please use the '/' version of this command going forward. If you do not see any '/' commands for HamBot in your server, try kicking and re-adding HamBot to your server using this link:\nhttps://discord.com/oauth2/authorize?client_id=1049789473254285332&permissions=19456&scope=bot");
+			await message.channel.send("'!' commands will be disabled January 21. Please use the '/' version of this command going forward. If you do not see any '/' commands for HamBot in your server, reauthorize HamBot on your server using this link:\nhttps://discord.com/oauth2/authorize?client_id=1049789473254285332&permissions=19456&scope=bot");
 		}
 		catch (err) {
 			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
@@ -148,7 +147,7 @@ client.on("messageCreate", async (message) => {
 	
 		try {
 			await message.channel.send(url); 
-			await message.channel.send("'!' commands will be disabled January 21. Please use the '/' version of this command going forward. If you do not see any '/' commands for HamBot in your server, try kicking and re-adding HamBot to your server using this link:\nhttps://discord.com/oauth2/authorize?client_id=1049789473254285332&permissions=19456&scope=bot");
+			await message.channel.send("'!' commands will be disabled January 21. Please use the '/' version of this command going forward. If you do not see any '/' commands for HamBot in your server, reauthorize HamBot on your server using this link:\nhttps://discord.com/oauth2/authorize?client_id=1049789473254285332&permissions=19456&scope=bot");
 			console.log("I posted the Daily Heathcliff");
 		} 
 		catch(err){
@@ -171,7 +170,7 @@ client.on("messageCreate", async (message) => {
 			
 		try {
 			await message.channel.send(url);
-			await message.channel.send("'!' commands will be disabled January 21. Please use the '/' version of this command going forward. If you do not see any '/' commands for HamBot in your server, try kicking and re-adding HamBot to your server using this link:\nhttps://discord.com/oauth2/authorize?client_id=1049789473254285332&permissions=19456&scope=bot");
+			await message.channel.send("'!' commands will be disabled January 21. Please use the '/' version of this command going forward. If you do not see any '/' commands for HamBot in your server, reauthorize HamBot on your server using this link:\nhttps://discord.com/oauth2/authorize?client_id=1049789473254285332&permissions=19456&scope=bot");
 			console.log("I posted a random Heathcliff"); 
 		} 
 		catch(err){
@@ -198,93 +197,11 @@ client.on("messageCreate", async (message) => {
 		}
 			return;
 	}
-	
-	if (message.content === '!addDaily') {
-		await message.channelId.get;
-		message.channel.name.get;
-		const channelId = message.channelId;
-		const channelName = message.channel.name;
-		
-		const fs = require('fs');
-		fs.readFile('channels.txt', 'utf8', function(err, data){
-			if(!(data.includes(channelId))){
-				try {
-					message.channel.send(channelName + " will now receive the daily Heathcliff comic at 9am CST every day!");
-					message.channel.send("'!' commands will be disabled January 21. Please use the '/' version of this command going forward. If you do not see any '/' commands for HamBot in your server, try kicking and re-adding HamBot to your server using this link:\nhttps://discord.com/oauth2/authorize?client_id=1049789473254285332&permissions=19456&scope=bot");
-					fs.appendFile('channels.txt',channelId +"\r\n", function (err) {
-						if (err) throw err;
-					});
-				}
-				catch(err){
-					message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
-					console.log("I experienced a message error");
-					return;
-				}
-			}
-			else {
-				try {
-					message.channel.send(channelName + " is already receiving the daily Heathcliff comic at 9am CST every day!");
-					message.channel.send("'!' commands will be disabled January 21. Please use the '/' version of this command going forward. If you do not see any '/' commands for HamBot in your server, try kicking and re-adding HamBot to your server using this link:\nhttps://discord.com/oauth2/authorize?client_id=1049789473254285332&permissions=19456&scope=bot");
-				}
-				catch(err){
-					message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
-					console.log("I experienced a message error");
-					return;
-				}
-			}
-		});
-		return;
-	}
-	
-	if (message.content === '!removeDaily') {
-		const fs = require('fs');
-		message.channelId.get;
-		message.channel.name.get;
-		const channelId = message.channelId;
-		const channelName = message.channel.name;
-		
-		try {
-			await message.channel.send(channelName + " will no longer receive the daily Heathcliff comic.");
-			await message.channel.send("'!' commands will be disabled January 21. Please use the '/' version of this command going forward. If you do not see any '/' commands for HamBot in your server, try kicking and re-adding HamBot to your server using this link:\nhttps://discord.com/oauth2/authorize?client_id=1049789473254285332&permissions=19456&scope=bot");
-		}
-		catch(err){
-			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
-			console.log("I experienced a message error");
-			return;
-		}
-		
-		var data = fs.readFileSync('channels.txt', 'utf-8');
-
-		var newValue = data.replace(channelId + "\r\n", '');
-		fs.writeFileSync('channels.txt', newValue, 'utf-8');
-	}
-	
-	if (message.content === '!readChannels') {
-		
-		message.channelId.get;
-		const channelId = message.channelId;
-		
-		if (channelId === testChannelId) {
-					const fs = require('fs');
-			
-			fs.readFile('channels.txt', 'utf8', function(err, data){
-				try {
-					message.channel.send(data);
-				}
-				catch(err){
-					message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
-					console.log("I experienced a message error");
-					return;					
-				}
-			});
-		}
-		return;
-	}
 
 	if (message.content === '!hambotSupport') {
 		try {
 			await message.channel.send("ToS and Privacy Policy: https://github.com/sneuman999/heathcliff-bot/blob/104307fae98c852c671f8b8e27c1f5e02eb51fc2/ToS%20and%20Privacy%20Policy \nFor support questions, contact hambotdiscord@gmail.com.");
-			await message.channel.send("'!' commands will be disabled January 21. Please use the '/' version of this command going forward. If you do not see any '/' commands for HamBot in your server, try kicking and re-adding HamBot to your server using this link:\nhttps://discord.com/oauth2/authorize?client_id=1049789473254285332&permissions=19456&scope=bot");
+			await message.channel.send("'!' commands will be disabled January 21. Please use the '/' version of this command going forward. If you do not see any '/' commands for HamBot in your server, reauthorize HamBot on your server using this link:\nhttps://discord.com/oauth2/authorize?client_id=1049789473254285332&permissions=19456&scope=bot");
 		}
 		catch (err) {
 			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
