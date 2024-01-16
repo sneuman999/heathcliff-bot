@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
-
+const { PermissionFlagsBits } = require('discord-api-types/v10');
+ 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName("adddaily")
@@ -10,6 +11,8 @@ module.exports = {
 				.setMinValue(0)
 				.setMaxValue(23)
 				.setRequired(true))
+		.setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+		.setDMPermission(false)
 	,
 
 	async execute(interaction) {
