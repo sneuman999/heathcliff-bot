@@ -61,7 +61,7 @@ client.on('ready', async () => {
 });
 
 var cron = require('node-cron');
-cron.schedule('00 00 * * * *', async () => {
+cron.schedule('00 40 * * * *', async () => {
 	const date = new Date();
 	const hour = date.getHours();
 	let hourString = hour.toString();
@@ -108,6 +108,11 @@ function cronDaily(cronTime) {
 				await channel.send(url);
 			}
 			catch (error) {
+				var data = fs.readFileSync('channels.txt', 'utf-8');
+				var dataSplit = data.split('\r\n');
+				const filteredArray = dataSplit.filter(item => !item.includes(separatedLine[0]));
+				var newValue = filteredArray.join('\r\n');
+				fs.writeFileSync('channels.txt', newValue, 'utf-8');
 				console.log("I experienced an error posting the daily.");
 			}
 		}
