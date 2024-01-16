@@ -3,7 +3,7 @@ const { SlashCommandBuilder } = require('discord.js');
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName("removedaily")
-		.setDescription("this channel will no longer receive the daily Heathcliff comic every morning at 9am CST"),
+		.setDescription("this channel will no longer receive the daily Heathcliff comic"),
 	async execute(interaction) {
 		const fs = require('fs');
 		const channelId = interaction.channelId;

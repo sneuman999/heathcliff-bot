@@ -3,7 +3,7 @@ const { SlashCommandBuilder } = require('discord.js');
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName("adddaily")
-		.setDescription("this channel will receive the daily Heathcliff comic every morning at 9am CST")
+		.setDescription("this channel will receive the daily Heathcliff comic every day at your chosen time")
 		.addIntegerOption(option =>
 			option.setName('hour')
 				.setDescription('hour daily comic will be posted every day in *Central Standard Time*. Input in 0-23 format.')
