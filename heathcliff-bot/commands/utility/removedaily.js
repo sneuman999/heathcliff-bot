@@ -22,9 +22,6 @@ module.exports = {
 		var dataSplit = data.split('\r\n');
 		console.log(dataSplit);
 		const filteredArray = dataSplit.filter(item => !item.includes(channelId));
-
-		console.log(filteredArray);
-
 		var newValue = filteredArray.join('\r\n');
 		fs.writeFileSync('channels.txt', newValue, 'utf-8');
 	},
