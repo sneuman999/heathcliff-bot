@@ -4,23 +4,35 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName("randomheathcliff")
 		.setDescription("posts a random Heathcliff comic from the vault."),
-	async execute(interaction) {
-		var randomDate = new Date();
-		var dd = String(Math.floor(Math.random() * 28) + 1);
-		var mm = String(Math.floor(Math.random() * 12) + 1);
-		var yyyy = String(Math.floor(Math.random() * 14) + 2009);
+		async execute(interaction) {
 
-		randomDate = yyyy + '/' + mm + '/' + dd;
-		var url = String('https://www.gocomics.com/heathcliff/' + yyyy + '/' + mm + '/' + dd);
-
-		try {
-			await interaction.reply(url);
-			console.log("I posted a random Heathcliff");
-		}
-		catch (err) {
-			await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
-			console.log("I experienced a message error");
+			var apiURL = String("https://heathcliff-api.winget.cloud/comic/original/random?comicType=heathcliff");
+	
+			fetch(apiURL)
+			.then(response => {
+			  if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			  }
+			  return response.json(); 
+			})
+			.then(data => {
+			  //console.log(data); // Process the data
+	
+			  try {
+				interaction.reply("Heathcliff comic from " + data.publishDate + ":\n" + data.imageUrl);
+				console.log("I posted a Random Heathcliff");
+			}
+			catch (err) {
+				//await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
+				console.log("I experienced a message error");
+				return;
+			}
+			  
+			})
+			.catch(error => {
+			  console.error("Fetching error:", error);
+			});
+	
 			return;
-		}
-	},
-};
+		},
+	};

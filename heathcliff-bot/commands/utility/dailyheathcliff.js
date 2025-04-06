@@ -3,19 +3,23 @@ const { SlashCommandBuilder } = require('discord.js');
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName("dailyheathcliff")
-		.setDescription("posts Heathclilff comic for today's date"),
+		.setDescription("posts Heathcliff comic for today's date"),
 	async execute(interaction) {
-		var today = new Date();
-		var dd = String(today.getDate()).padStart(2, '0');
-		var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
-		var yyyy = today.getFullYear();
 
-		today = yyyy + '/' + mm + '/' + dd;
+		var apiURL = String("https://heathcliff-api.winget.cloud/comic/original/newest?comicType=heathcliff");
 
-		var url = String('https://www.gocomics.com/heathcliff/' + yyyy + '/' + mm + '/' + dd);
+		fetch(apiURL)
+		.then(response => {
+		  if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		  }
+		  return response.json(); 
+		})
+		.then(data => {
+		  //console.log(data); // Process the data
 
-		try {
-			await interaction.reply(url);
+		  try {
+			interaction.reply("Heathcliff comic from " + data.publishDate + ":\n" + data.imageUrl);
 			console.log("I posted the Daily Heathcliff");
 		}
 		catch (err) {
@@ -23,6 +27,12 @@ module.exports = {
 			console.log("I experienced a message error");
 			return;
 		}
+		  
+		})
+		.catch(error => {
+		  console.error("Fetching error:", error);
+		});
+
 		return;
 	},
 };
