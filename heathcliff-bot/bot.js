@@ -102,8 +102,9 @@ function cronDaily(cronTime) {
 			var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
 			var yyyy = today.getFullYear();
 
-			randomDate = yyyy + '/' + mm + '/' + dd;
-			var url = String('https://www.gocomics.com/heathcliff/' + yyyy + '/' + mm + '/' + dd);
+			today = yyyy + "-" + mm + "-" + dd;
+
+			var url = String('https://heathcliff-images.storage.gogoleapis.com/heathcliff//' + today + '.png');
 			try {
 				await channel.send(url);
 			}

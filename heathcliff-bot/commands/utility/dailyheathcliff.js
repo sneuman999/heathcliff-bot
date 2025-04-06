@@ -3,16 +3,16 @@ const { SlashCommandBuilder } = require('discord.js');
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName("dailyheathcliff")
-		.setDescription("posts Heathclilff comic for today's date"),
+		.setDescription("posts Heathcliff comic for today's date"),
 	async execute(interaction) {
 		var today = new Date();
 		var dd = String(today.getDate()).padStart(2, '0');
 		var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
 		var yyyy = today.getFullYear();
 
-		today = yyyy + '/' + mm + '/' + dd;
+		today = yyyy + '-' + mm + '-' + dd;
 
-		var url = String('https://www.gocomics.com/heathcliff/' + yyyy + '/' + mm + '/' + dd);
+		var url = String('https://heathcliff-images.storage.gogoleapis.com/heathcliff//' + today + '.png');
 
 		try {
 			await interaction.reply(url);
