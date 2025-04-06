@@ -10,9 +10,8 @@ module.exports = {
 		var mm = String(Math.floor(Math.random() * 12) + 1);
 		var yyyy = String(Math.floor(Math.random() * 14) + 2009);
 
-		randomDate = yyyy + '-' + mm + '-' + dd;
-
-		var url = String('https://heathcliff-images.storage.gogoleapis.com/heathcliff//' + randomDate + '.png');
+		randomDate = yyyy + '/' + mm + '/' + dd;
+		var url = String('https://www.gocomics.com/heathcliff/' + yyyy + '/' + mm + '/' + dd);
 
 		try {
 			await interaction.reply(url);
