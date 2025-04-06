@@ -8,8 +8,6 @@ const client = new Client({
 	intents: [
 		GatewayIntentBits.Guilds,
 		GatewayIntentBits.GuildMessages,
-		GatewayIntentBits.MessageContent,
-		GatewayIntentBits.GuildMembers,
 	],
 });
 const { clientId, guildId, token, testChannelId } = require('./config.json');
@@ -97,25 +95,32 @@ function cronDaily(cronTime) {
 		var channel = client.channels.cache.get(separatedLine[0]);
 
 		if (separatedLine[1] === cronTime) {
-			var today = new Date();
-			var dd = String(today.getDate()).padStart(2, '0');
-			var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
-			var yyyy = today.getFullYear();
 
-			today = yyyy + "-" + mm + "-" + dd;
+			var apiURL = String("https://heathcliff-api.winget.cloud/comic/original/newest?comicType=heathcliff");
 
-			var url = String('https://heathcliff-images.storage.gogoleapis.com/heathcliff//' + today + '.png');
-			try {
-				await channel.send(url);
+			fetch(apiURL)
+			.then(response => {
+			  if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			  }
+			  return response.json(); 
+			})
+			.then(data => {
+			  //console.log(data); // Process the data
+	
+			  try {
+				interaction.reply("Heathcliff comic from " + data.publishDate + ":\n" + data.imageUrl);
+				console.log("I posted the Daily Heathcliff");
 			}
-			catch (error) {
-				var data = fs.readFileSync('channels.txt', 'utf-8');
-				var dataSplit = data.split('\r\n');
-				const filteredArray = dataSplit.filter(item => !item.includes(separatedLine[0]));
-				var newValue = filteredArray.join('\r\n');
-				fs.writeFileSync('channels.txt', newValue, 'utf-8');
-				console.log("I experienced an error posting the daily.");
+			catch (err) {
+				console.log("I experienced a message error");
+				return;
 			}
+			  
+			})
+			.catch(error => {
+			  console.error("Fetching error:", error);
+			});
 		}
 		else {
 			return;
