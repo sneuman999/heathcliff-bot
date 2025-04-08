@@ -59,7 +59,7 @@ client.on('ready', async () => {
 });
 
 var cron = require('node-cron');
-cron.schedule('00 40 * * * *', async () => {
+cron.schedule('00 00 * * * *', async () => {
 	const date = new Date();
 	const hour = date.getHours();
 	let hourString = hour.toString();
@@ -74,6 +74,23 @@ cron.schedule('00 40 * * * *', async () => {
 function cronDaily(cronTime) {
 	const fs = require('fs');
 	const readline = require('readline');
+	var apiURL = String("https://heathcliff-api.winget.cloud/comic/original/newest?comicType=heathcliff");
+	var publishDate, imageUrl;
+
+	fetch(apiURL)
+	.then(response => {
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		  }
+		  return response.json(); 
+	})
+	.then (data => {
+		publishDate = data.publishDate;
+		imageUrl = data.imageUrl;
+	})
+	.catch(error => {
+		console.error("Fetching error:", error);
+	});
 
 	// Creating a readable stream from file
 	// readline module reads line by line 
@@ -95,40 +112,17 @@ function cronDaily(cronTime) {
 		var channel = client.channels.cache.get(separatedLine[0]);
 
 		if (separatedLine[1] === cronTime) {
-
-			var apiURL = String("https://heathcliff-api.winget.cloud/comic/original/newest?comicType=heathcliff");
-
-			fetch(apiURL)
-			.then(response => {
-			  if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
-			  }
-			  return response.json(); 
-			})
-			.then(data => {
-			  //console.log(data); // Process the data
-	
-			  try {
-				interaction.reply("Heathcliff comic from " + data.publishDate + ":\n" + data.imageUrl);
+			try{
+				await channel.send("Heathcliff comic from " + publishDate + ":\n" + imageUrl);
 				console.log("I posted the Daily Heathcliff");
 			}
-			catch (err) {
+			catch{
 				console.log("I experienced a message error");
 				return;
 			}
-			  
-			})
-			.catch(error => {
-			  console.error("Fetching error:", error);
-			});
 		}
-		else {
-			return;
-        }
 	});
 	return;
 }
-
-
 
 client.login(token);
