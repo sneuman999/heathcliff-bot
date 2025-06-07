@@ -16,6 +16,7 @@ const client = new Client({
 const { token , servicekey } = require('./config.json');
 
 let browser;
+let page;
 
 client.commands = new Collection();
 
@@ -80,12 +81,12 @@ async function gracefulShutdown() {
     }
 
     // Close any open file streams (e.g., readline interface)
-    if (file) {
-        try {
+    if (typeof file !== 'undefined' && file) {
+     try {
             file.close();
             console.log("Readline interface closed.");
         } catch (error) {
-            console.error("Error closing readline interface:", error);
+         console.error("Error closing readline interface:", error);
         }
     }
 
@@ -99,6 +100,8 @@ async function gracefulShutdown() {
 }
 
 var cron = require('node-cron');
+
+//Cron job to post daily Heathcliff comic
 cron.schedule('00 00 * * * *', async () => {
 	const date = new Date();
 	const hour = date.getHours();
@@ -108,57 +111,114 @@ cron.schedule('00 00 * * * *', async () => {
 		hourString = '0' + hourString;
     }
 	console.log(hour);
-	comicURL = await comicScrape('og:image');
-	comicTitle = (await comicScrape('article:published_time')).toString().substring(0, 10);
-	//comicTitle = substring(String(comicTitle), 0, 10);
-	console.log("Web scraped successfully:", comicURL);
-	await downloadImage(comicURL, 'png holding/' + comicTitle + '.png');
-	await uploadImage('png holding/' + comicTitle + '.png', 'heathcliff-comics', comicTitle + '.png');
 	await cronDaily(hourString);
-	//await comicScrape();
 });
 
-function downloadImage(url, filepath) {
-    https.get(url, (res) => {
-        if (res.statusCode === 200) {
-			const fileStream = fs.createWriteStream(filepath);
-			res.pipe(fileStream);
+let newComicUploaded = true;
+searchDate = new Date();
+searchDate.setDate(searchDate.getDate() + 1);
+searchDate.setHours(0, 0, 0, 0);
 
-			fileStream.on('finish', () => {
-                fileStream.close();
-                console.log("Image downloaded successfully to:", filepath);
-            });
+cron.schedule('0 0 23 * * *', async () => {
+    newComicUploaded = false;
+    searchDate = new Date();
+    searchDate.setDate(searchDate.getDate() + 1); // Set to tomorrow's date
+    searchDate.setHours(0, 0, 0, 0); // Reset time to midnight
+});
 
-            fileStream.on('error', (err) => {
-                console.error("Error writing to file:", err.message);
-                fileStream.close();
-            });
-        } else {
-            console.error("Error downloading image. Status code:", res.statusCode);
-            res.destroy(); // Destroy the response stream to free resources
+cron.schedule('0 */30 * * * *', async () => {
+    if (!newComicUploaded) {
+        let comicTitle = (await comicScrape('article:published_time')).toString().substring(0, 10);
+        let comicDate =  new Date(comicTitle);
+        comicDate.setHours(0, 0, 0, 0); // Reset time to midnight
+        if (comicDate.getTime() === searchDate.getTime())
+        {
+            let comicURL = await comicScrape('og:image');
+        	await downloadImage(comicURL, 'png holding/' + comicTitle + '.png');
+	        await uploadImage('png holding/' + comicTitle + '.png', 'heathcliff-comics', comicTitle + '.png');
+            await deleteImage('png holding/' + comicTitle + '.png');
+            newComicUploaded = true;
+            console.log("New comic uploaded:", comicTitle);
         }
-    }).on('error', (err) => {
-        console.error("Error during download:", err.message);
-    });
+    }
+    
+});
 
+async function downloadImage(url, filepath) {
+    return new Promise((resolve, reject) => {
+        https.get(url, (res) => {
+            if (res.statusCode === 200) {
+                const fileStream = fs.createWriteStream(filepath);
+                res.pipe(fileStream);
+
+                fileStream.on('finish', () => {
+                    fileStream.close();
+                    console.log("Image downloaded successfully to:", filepath);
+                    resolve();
+                });
+
+                fileStream.on('error', (err) => {
+                    console.error("Error writing to file:", err.message);
+                    fileStream.close();
+                    reject(err);
+                });
+            } else {
+                console.error("Error downloading image. Status code:", res.statusCode);
+                res.destroy();
+                reject(new Error(`Status code: ${res.statusCode}`));
+            }
+        }).on('error', (err) => {
+            console.error("Error during download:", err.message);
+            reject(err);
+        });
+    });
 }
 
+const os = require('os'); // Import the os module to detect the platform
 async function comicScrape(property) {
-   if (!browser) {
-	browser = await puppeteer.launch({ headless: true, defaultViewport: null });
-   }
-    const page = await browser.newPage();
+    const puppeteer = require('puppeteer');
 
-    // Navigate to the Heathcliff comic page
-    await page.goto("https://creators.com/read/heathcliff", { waitUntil: "domcontentloaded" });
+    // Detect if the program is running on a Raspberry Pi
+    const isRaspberryPi = os.platform() === 'linux' && os.arch() === 'arm';
 
-    // Scrape the content of the meta tag with property="og:image"
-    const comicURL = await page.evaluate((property) => {
-        const metaTag = document.querySelector(`meta[property="` + property + `"]`);
-        return metaTag ? metaTag.content : null;
-    }, property);
-	await page.close();
-	return comicURL;
+    // Launch Puppeteer with Raspberry Pi-specific options if running on a Pi
+    if (!browser) {
+        browser = await puppeteer.launch({
+            headless: true,
+            executablePath: isRaspberryPi ? '/usr/bin/chromium-browser' : undefined, // Use system Chromium on Pi
+            args: isRaspberryPi
+                ? [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--disable-gpu',
+                    '--no-zygote',
+                    '--single-process',
+                ]
+                : [], // No special args for non-Pi systems
+        });
+    }
+
+    if (!page) {
+        page = await browser.newPage();
+    }
+
+    try {
+        // Navigate to the Heathcliff comic page
+        await page.goto("https://creators.com/read/heathcliff", { waitUntil: "domcontentloaded" });
+
+        // Scrape the content of the meta tag with the specified property
+        const comicURL = await page.evaluate((property) => {
+            const metaTag = document.querySelector(`meta[property="${property}"]`);
+            return metaTag ? metaTag.content : null;
+        }, property);
+
+        return comicURL;
+    } catch (error) {
+        console.error("Error during web scraping:", error);
+        return null;
+    }
 }
 
 async function uploadImage(imagePath, bucketName, imageName) {
@@ -181,6 +241,16 @@ async function uploadImage(imagePath, bucketName, imageName) {
 	console.error('Error uploading image:', error);
 	throw error;
   }
+}
+
+async function deleteImage(filepath) {
+    const fs = require('fs').promises;
+    try {
+        await fs.unlink(filepath);
+        console.log(`Deleted local file: ${filepath}`);
+    } catch (err) {
+        console.error(`Error deleting file ${filepath}:`, err);
+    }
 }
 
 function cronDaily(cronTime) {
