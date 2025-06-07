@@ -2,7 +2,7 @@
 
 'use strict'
 
-const { kHeadersList } = require('../core/symbols')
+const { kHeadersList, kConstruct } = require('../core/symbols')
 const { kGuard } = require('./symbols')
 const { kEnumerableProperty } = require('../core/util')
 const {
@@ -10,10 +10,19 @@ const {
   isValidHeaderName,
   isValidHeaderValue
 } = require('./util')
+const util = require('util')
 const { webidl } = require('./webidl')
+const assert = require('assert')
 
 const kHeadersMap = Symbol('headers map')
 const kHeadersSortedMap = Symbol('headers map sorted')
+
+/**
+ * @param {number} code
+ */
+function isHTTPWhiteSpaceCharCode (code) {
+  return code === 0x00a || code === 0x00d || code === 0x009 || code === 0x020
+}
 
 /**
  * @see https://fetch.spec.whatwg.org/#concept-header-value-normalize
@@ -23,10 +32,12 @@ function headerValueNormalize (potentialValue) {
   //  To normalize a byte sequence potentialValue, remove
   //  any leading and trailing HTTP whitespace bytes from
   //  potentialValue.
-  return potentialValue.replace(
-    /^[\r\n\t ]+|[\r\n\t ]+$/g,
-    ''
-  )
+  let i = 0; let j = potentialValue.length
+
+  while (j > i && isHTTPWhiteSpaceCharCode(potentialValue.charCodeAt(j - 1))) --j
+  while (j > i && isHTTPWhiteSpaceCharCode(potentialValue.charCodeAt(i))) ++i
+
+  return i === 0 && j === potentialValue.length ? potentialValue : potentialValue.substring(i, j)
 }
 
 function fill (headers, object) {
@@ -35,7 +46,8 @@ function fill (headers, object) {
   // 1. If object is a sequence, then for each header in object:
   // Note: webidl conversion to array has already been done.
   if (Array.isArray(object)) {
-    for (const header of object) {
+    for (let i = 0; i < object.length; ++i) {
+      const header = object[i]
       // 1. If header does not contain exactly two items, then throw a TypeError.
       if (header.length !== 2) {
         throw webidl.errors.exception({
@@ -45,15 +57,16 @@ function fill (headers, object) {
       }
 
       // 2. Append (header’s first item, header’s second item) to headers.
-      headers.append(header[0], header[1])
+      appendHeader(headers, header[0], header[1])
     }
   } else if (typeof object === 'object' && object !== null) {
     // Note: null should throw
 
     // 2. Otherwise, object is a record, then for each key → value in object,
     //    append (key, value) to headers
-    for (const [key, value] of Object.entries(object)) {
-      headers.append(key, value)
+    const keys = Object.keys(object)
+    for (let i = 0; i < keys.length; ++i) {
+      appendHeader(headers, keys[i], object[keys[i]])
     }
   } else {
     throw webidl.errors.conversionFailed({
@@ -64,11 +77,59 @@ function fill (headers, object) {
   }
 }
 
+/**
+ * @see https://fetch.spec.whatwg.org/#concept-headers-append
+ */
+function appendHeader (headers, name, value) {
+  // 1. Normalize value.
+  value = headerValueNormalize(value)
+
+  // 2. If name is not a header name or value is not a
+  //    header value, then throw a TypeError.
+  if (!isValidHeaderName(name)) {
+    throw webidl.errors.invalidArgument({
+      prefix: 'Headers.append',
+      value: name,
+      type: 'header name'
+    })
+  } else if (!isValidHeaderValue(value)) {
+    throw webidl.errors.invalidArgument({
+      prefix: 'Headers.append',
+      value,
+      type: 'header value'
+    })
+  }
+
+  // 3. If headers’s guard is "immutable", then throw a TypeError.
+  // 4. Otherwise, if headers’s guard is "request" and name is a
+  //    forbidden header name, return.
+  // Note: undici does not implement forbidden header names
+  if (headers[kGuard] === 'immutable') {
+    throw new TypeError('immutable')
+  } else if (headers[kGuard] === 'request-no-cors') {
+    // 5. Otherwise, if headers’s guard is "request-no-cors":
+    // TODO
+  }
+
+  // 6. Otherwise, if headers’s guard is "response" and name is a
+  //    forbidden response-header name, return.
+
+  // 7. Append (name, value) to headers’s header list.
+  return headers[kHeadersList].append(name, value)
+
+  // 8. If headers’s guard is "request-no-cors", then remove
+  //    privileged no-CORS request headers from headers
+}
+
 class HeadersList {
+  /** @type {[string, string][]|null} */
+  cookies = null
+
   constructor (init) {
     if (init instanceof HeadersList) {
       this[kHeadersMap] = new Map(init[kHeadersMap])
       this[kHeadersSortedMap] = init[kHeadersSortedMap]
+      this.cookies = init.cookies === null ? null : [...init.cookies]
     } else {
       this[kHeadersMap] = new Map(init)
       this[kHeadersSortedMap] = null
@@ -88,6 +149,7 @@ class HeadersList {
   clear () {
     this[kHeadersMap].clear()
     this[kHeadersSortedMap] = null
+    this.cookies = null
   }
 
   // https://fetch.spec.whatwg.org/#concept-header-list-append
@@ -96,27 +158,40 @@ class HeadersList {
 
     // 1. If list contains name, then set name to the first such
     //    header’s name.
-    name = name.toLowerCase()
-    const exists = this[kHeadersMap].get(name)
+    const lowercaseName = name.toLowerCase()
+    const exists = this[kHeadersMap].get(lowercaseName)
 
     // 2. Append (name, value) to list.
     if (exists) {
-      this[kHeadersMap].set(name, `${exists}, ${value}`)
+      const delimiter = lowercaseName === 'cookie' ? '; ' : ', '
+      this[kHeadersMap].set(lowercaseName, {
+        name: exists.name,
+        value: `${exists.value}${delimiter}${value}`
+      })
     } else {
-      this[kHeadersMap].set(name, `${value}`)
+      this[kHeadersMap].set(lowercaseName, { name, value })
+    }
+
+    if (lowercaseName === 'set-cookie') {
+      this.cookies ??= []
+      this.cookies.push(value)
     }
   }
 
   // https://fetch.spec.whatwg.org/#concept-header-list-set
   set (name, value) {
     this[kHeadersSortedMap] = null
-    name = name.toLowerCase()
+    const lowercaseName = name.toLowerCase()
+
+    if (lowercaseName === 'set-cookie') {
+      this.cookies = [value]
+    }
 
     // 1. If list contains name, then set the value of
     //    the first such header to value and remove the
     //    others.
     // 2. Otherwise, append header (name, value) to list.
-    return this[kHeadersMap].set(name, value)
+    this[kHeadersMap].set(lowercaseName, { name, value })
   }
 
   // https://fetch.spec.whatwg.org/#concept-header-list-delete
@@ -124,32 +199,51 @@ class HeadersList {
     this[kHeadersSortedMap] = null
 
     name = name.toLowerCase()
-    return this[kHeadersMap].delete(name)
+
+    if (name === 'set-cookie') {
+      this.cookies = null
+    }
+
+    this[kHeadersMap].delete(name)
   }
 
   // https://fetch.spec.whatwg.org/#concept-header-list-get
   get (name) {
-    // 1. If list does not contain name, then return null.
-    if (!this.contains(name)) {
-      return null
-    }
+    const value = this[kHeadersMap].get(name.toLowerCase())
 
+    // 1. If list does not contain name, then return null.
     // 2. Return the values of all headers in list whose name
     //    is a byte-case-insensitive match for name,
     //    separated from each other by 0x2C 0x20, in order.
-    return this[kHeadersMap].get(name.toLowerCase()) ?? null
+    return value === undefined ? null : value.value
   }
 
   * [Symbol.iterator] () {
-    for (const pair of this[kHeadersMap]) {
-      yield pair
+    // use the lowercased name
+    for (const [name, { value }] of this[kHeadersMap]) {
+      yield [name, value]
     }
+  }
+
+  get entries () {
+    const headers = {}
+
+    if (this[kHeadersMap].size) {
+      for (const { name, value } of this[kHeadersMap].values()) {
+        headers[name] = value
+      }
+    }
+
+    return headers
   }
 }
 
 // https://fetch.spec.whatwg.org/#headers-class
 class Headers {
   constructor (init = undefined) {
+    if (init === kConstruct) {
+      return
+    }
     this[kHeadersList] = new HeadersList()
 
     // The new Headers(init) constructor steps are:
@@ -173,43 +267,7 @@ class Headers {
     name = webidl.converters.ByteString(name)
     value = webidl.converters.ByteString(value)
 
-    // 1. Normalize value.
-    value = headerValueNormalize(value)
-
-    // 2. If name is not a header name or value is not a
-    //    header value, then throw a TypeError.
-    if (!isValidHeaderName(name)) {
-      throw webidl.errors.invalidArgument({
-        prefix: 'Headers.append',
-        value: name,
-        type: 'header name'
-      })
-    } else if (!isValidHeaderValue(value)) {
-      throw webidl.errors.invalidArgument({
-        prefix: 'Headers.append',
-        value,
-        type: 'header value'
-      })
-    }
-
-    // 3. If headers’s guard is "immutable", then throw a TypeError.
-    // 4. Otherwise, if headers’s guard is "request" and name is a
-    //    forbidden header name, return.
-    // Note: undici does not implement forbidden header names
-    if (this[kGuard] === 'immutable') {
-      throw new TypeError('immutable')
-    } else if (this[kGuard] === 'request-no-cors') {
-      // 5. Otherwise, if headers’s guard is "request-no-cors":
-      // TODO
-    }
-
-    // 6. Otherwise, if headers’s guard is "response" and name is a
-    //    forbidden response-header name, return.
-
-    // 7. Append (name, value) to headers’s header list.
-    // 8. If headers’s guard is "request-no-cors", then remove
-    //    privileged no-CORS request headers from headers
-    return this[kHeadersList].append(name, value)
+    return appendHeader(this, name, value)
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-delete
@@ -254,7 +312,7 @@ class Headers {
     // 7. Delete name from this’s header list.
     // 8. If this’s guard is "request-no-cors", then remove
     //    privileged no-CORS request headers from this.
-    return this[kHeadersList].delete(name)
+    this[kHeadersList].delete(name)
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-get
@@ -347,21 +405,84 @@ class Headers {
     // 7. Set (name, value) in this’s header list.
     // 8. If this’s guard is "request-no-cors", then remove
     //    privileged no-CORS request headers from this
-    return this[kHeadersList].set(name, value)
+    this[kHeadersList].set(name, value)
   }
 
-  get [kHeadersSortedMap] () {
-    if (!this[kHeadersList][kHeadersSortedMap]) {
-      this[kHeadersList][kHeadersSortedMap] = new Map([...this[kHeadersList]].sort((a, b) => a[0] < b[0] ? -1 : 1))
+  // https://fetch.spec.whatwg.org/#dom-headers-getsetcookie
+  getSetCookie () {
+    webidl.brandCheck(this, Headers)
+
+    // 1. If this’s header list does not contain `Set-Cookie`, then return « ».
+    // 2. Return the values of all headers in this’s header list whose name is
+    //    a byte-case-insensitive match for `Set-Cookie`, in order.
+
+    const list = this[kHeadersList].cookies
+
+    if (list) {
+      return [...list]
     }
-    return this[kHeadersList][kHeadersSortedMap]
+
+    return []
+  }
+
+  // https://fetch.spec.whatwg.org/#concept-header-list-sort-and-combine
+  get [kHeadersSortedMap] () {
+    if (this[kHeadersList][kHeadersSortedMap]) {
+      return this[kHeadersList][kHeadersSortedMap]
+    }
+
+    // 1. Let headers be an empty list of headers with the key being the name
+    //    and value the value.
+    const headers = []
+
+    // 2. Let names be the result of convert header names to a sorted-lowercase
+    //    set with all the names of the headers in list.
+    const names = [...this[kHeadersList]].sort((a, b) => a[0] < b[0] ? -1 : 1)
+    const cookies = this[kHeadersList].cookies
+
+    // 3. For each name of names:
+    for (let i = 0; i < names.length; ++i) {
+      const [name, value] = names[i]
+      // 1. If name is `set-cookie`, then:
+      if (name === 'set-cookie') {
+        // 1. Let values be a list of all values of headers in list whose name
+        //    is a byte-case-insensitive match for name, in order.
+
+        // 2. For each value of values:
+        // 1. Append (name, value) to headers.
+        for (let j = 0; j < cookies.length; ++j) {
+          headers.push([name, cookies[j]])
+        }
+      } else {
+        // 2. Otherwise:
+
+        // 1. Let value be the result of getting name from list.
+
+        // 2. Assert: value is non-null.
+        assert(value !== null)
+
+        // 3. Append (name, value) to headers.
+        headers.push([name, value])
+      }
+    }
+
+    this[kHeadersList][kHeadersSortedMap] = headers
+
+    // 4. Return headers.
+    return headers
   }
 
   keys () {
     webidl.brandCheck(this, Headers)
 
+    if (this[kGuard] === 'immutable') {
+      const value = this[kHeadersSortedMap]
+      return makeIterator(() => value, 'Headers',
+        'key')
+    }
+
     return makeIterator(
-      () => [...this[kHeadersSortedMap].entries()],
+      () => [...this[kHeadersSortedMap].values()],
       'Headers',
       'key'
     )
@@ -370,8 +491,14 @@ class Headers {
   values () {
     webidl.brandCheck(this, Headers)
 
+    if (this[kGuard] === 'immutable') {
+      const value = this[kHeadersSortedMap]
+      return makeIterator(() => value, 'Headers',
+        'value')
+    }
+
     return makeIterator(
-      () => [...this[kHeadersSortedMap].entries()],
+      () => [...this[kHeadersSortedMap].values()],
       'Headers',
       'value'
     )
@@ -380,8 +507,14 @@ class Headers {
   entries () {
     webidl.brandCheck(this, Headers)
 
+    if (this[kGuard] === 'immutable') {
+      const value = this[kHeadersSortedMap]
+      return makeIterator(() => value, 'Headers',
+        'key+value')
+    }
+
     return makeIterator(
-      () => [...this[kHeadersSortedMap].entries()],
+      () => [...this[kHeadersSortedMap].values()],
       'Headers',
       'key+value'
     )
@@ -422,6 +555,7 @@ Object.defineProperties(Headers.prototype, {
   get: kEnumerableProperty,
   has: kEnumerableProperty,
   set: kEnumerableProperty,
+  getSetCookie: kEnumerableProperty,
   keys: kEnumerableProperty,
   values: kEnumerableProperty,
   entries: kEnumerableProperty,
@@ -430,6 +564,9 @@ Object.defineProperties(Headers.prototype, {
   [Symbol.toStringTag]: {
     value: 'Headers',
     configurable: true
+  },
+  [util.inspect.custom]: {
+    enumerable: false
   }
 })
 

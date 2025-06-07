@@ -1,12 +1,13 @@
 'use strict'
 
-const { Blob } = require('buffer')
+const { Blob, File: NativeFile } = require('buffer')
 const { types } = require('util')
 const { kState } = require('./symbols')
 const { isBlobLike } = require('./util')
 const { webidl } = require('./webidl')
 const { parseMIMEType, serializeAMimeType } = require('./dataURL')
 const { kEnumerableProperty } = require('../core/util')
+const encoder = new TextEncoder()
 
 class File extends Blob {
   constructor (fileBits, fileName, options = {}) {
@@ -280,7 +281,7 @@ function processBlobParts (parts, options) {
       }
 
       // 3. Append the result of UTF-8 encoding s to bytes.
-      bytes.push(new TextEncoder().encode(s))
+      bytes.push(encoder.encode(s))
     } else if (
       types.isAnyArrayBuffer(element) ||
       types.isTypedArray(element)
@@ -329,11 +330,14 @@ function convertLineEndingsNative (s) {
 // rollup) will warn about circular dependencies. See:
 // https://github.com/nodejs/undici/issues/1629
 function isFileLike (object) {
-  return object instanceof File || (
-    object &&
-    (typeof object.stream === 'function' ||
-     typeof object.arrayBuffer === 'function') &&
-     object[Symbol.toStringTag] === 'File'
+  return (
+    (NativeFile && object instanceof NativeFile) ||
+    object instanceof File || (
+      object &&
+      (typeof object.stream === 'function' ||
+      typeof object.arrayBuffer === 'function') &&
+      object[Symbol.toStringTag] === 'File'
+    )
   )
 }
 

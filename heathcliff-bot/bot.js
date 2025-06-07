@@ -3,14 +3,19 @@ require('dotenv').config();
 
 const fs = require('node:fs');
 const path = require('node:path');
+const puppeteer = require('puppeteer');
+const https = require('node:https');
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
+const { Storage } = require('@google-cloud/storage');
 const client = new Client({
 	intents: [
 		GatewayIntentBits.Guilds,
 		GatewayIntentBits.GuildMessages,
 	],
 });
-const { clientId, guildId, token, testChannelId } = require('./config.json');
+const { token , servicekey } = require('./config.json');
+
+let browser;
 
 client.commands = new Collection();
 
@@ -32,6 +37,7 @@ for (const folder of commandFolders) {
 	}
 }
 
+client.removeAllListeners(Events.InteractionCreate);
 client.on(Events.InteractionCreate, async interaction => {
 	if (!interaction.isChatInputCommand()) return;
 
@@ -53,13 +59,47 @@ client.on(Events.InteractionCreate, async interaction => {
 		}
 	}
 });
-		
+
+client.removeAllListeners('ready');	
 client.on('ready', async () => {
 	console.log(`Logged in as ${client.user.tag}!`);
 });
 
+process.on('SIGINT', gracefulShutdown);
+async function gracefulShutdown() {
+    console.log("Graceful shutdown initiated...");
+
+    // Close Puppeteer browser instance if it exists
+    if (browser) {
+        try {
+            await browser.close();
+            console.log("Puppeteer browser instance closed.");
+        } catch (error) {
+            console.error("Error closing Puppeteer browser:", error);
+        }
+    }
+
+    // Close any open file streams (e.g., readline interface)
+    if (file) {
+        try {
+            file.close();
+            console.log("Readline interface closed.");
+        } catch (error) {
+            console.error("Error closing readline interface:", error);
+        }
+    }
+
+    // Destroy the Discord client
+    try {
+        await client.destroy();
+        console.log("Discord client destroyed.");
+    } catch (error) {
+        console.error("Error destroying Discord client:", error);
+    }
+}
+
 var cron = require('node-cron');
-cron.schedule('00 14 * * * *', async () => {
+cron.schedule('00 00 * * * *', async () => {
 	const date = new Date();
 	const hour = date.getHours();
 	let hourString = hour.toString();
@@ -68,58 +108,113 @@ cron.schedule('00 14 * * * *', async () => {
 		hourString = '0' + hourString;
     }
 	console.log(hour);
+	comicURL = await comicScrape('og:image');
+	comicTitle = (await comicScrape('article:published_time')).toString().substring(0, 10);
+	//comicTitle = substring(String(comicTitle), 0, 10);
+	console.log("Web scraped successfully:", comicURL);
+	await downloadImage(comicURL, 'png holding/' + comicTitle + '.png');
+	await uploadImage('png holding/' + comicTitle + '.png', 'heathcliff-comics', comicTitle + '.png');
 	await cronDaily(hourString);
+	//await comicScrape();
 });
 
+function downloadImage(url, filepath) {
+    https.get(url, (res) => {
+        if (res.statusCode === 200) {
+			const fileStream = fs.createWriteStream(filepath);
+			res.pipe(fileStream);
+
+			fileStream.on('finish', () => {
+                fileStream.close();
+                console.log("Image downloaded successfully to:", filepath);
+            });
+
+            fileStream.on('error', (err) => {
+                console.error("Error writing to file:", err.message);
+                fileStream.close();
+            });
+        } else {
+            console.error("Error downloading image. Status code:", res.statusCode);
+            res.destroy(); // Destroy the response stream to free resources
+        }
+    }).on('error', (err) => {
+        console.error("Error during download:", err.message);
+    });
+
+}
+
+async function comicScrape(property) {
+   if (!browser) {
+	browser = await puppeteer.launch({ headless: true, defaultViewport: null });
+   }
+    const page = await browser.newPage();
+
+    // Navigate to the Heathcliff comic page
+    await page.goto("https://creators.com/read/heathcliff", { waitUntil: "domcontentloaded" });
+
+    // Scrape the content of the meta tag with property="og:image"
+    const comicURL = await page.evaluate((property) => {
+        const metaTag = document.querySelector(`meta[property="` + property + `"]`);
+        return metaTag ? metaTag.content : null;
+    }, property);
+	await page.close();
+	return comicURL;
+}
+
+async function uploadImage(imagePath, bucketName, imageName) {
+  const storage = new Storage({
+	keyFilename: servicekey,
+  });
+  const bucket = storage.bucket(bucketName);
+
+  try {
+	await bucket.upload(imagePath, {
+	  destination: imageName,
+	});
+	console.log(`${imageName} uploaded to ${bucketName}`);
+	const file = bucket.file(imageName)
+	await file.makePublic();
+	const publicUrl = file.publicUrl();
+	console.log(`File available at ${publicUrl}`)
+	return publicUrl
+  } catch (error) {
+	console.error('Error uploading image:', error);
+	throw error;
+  }
+}
+
 function cronDaily(cronTime) {
-	const fs = require('fs');
-	const readline = require('readline');
-	var apiURL = String("https://heathcliff-api.winget.cloud/comic/original/newest?comicType=heathcliff");
+    const fs = require('fs');
+    const readline = require('readline');
+    const currentdate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
+    const comicURL = `https://storage.googleapis.com/heathcliff-comics/${currentdate}.png`;
 
-	fetch(apiURL)
-	.then(response => {
-		if (!response.ok) {
-			throw new Error(`HTTP error! status: ${response.status}`);
-		  }
-		  return response.json(); 
-	})
-	.then (data => {
-			// Creating a readable stream from file
-	// readline module reads line by line 
-	// but from a readable stream only.
-	const file = readline.createInterface({
-		input: fs.createReadStream('channels.txt'),
-		output: process.stdout,
-		terminal: false
-	});
+    // Create a readable stream from the file
+    const file = readline.createInterface({
+        input: fs.createReadStream('channels.txt'),
+        output: process.stdout,
+        terminal: false
+    });
 
-	// Printing the content of file line by
-	//  line to console by listening on the
-	// line event which will triggered
-	// whenever a new line is read from
-	// the stream
-	file.on('line', async (line) => {
+    // Process each line in the file
+    file.on('line', async (line) => {
+        const separatedLine = line.split(', ');
+        const channel = client.channels.cache.get(separatedLine[0]);
 
-		separatedLine = line.split(', ');
-		var channel = client.channels.cache.get(separatedLine[0]);
+        if (separatedLine[1] === cronTime) {
+            try {
+                await channel.send(`Heathcliff comic for today:\n${comicURL}`);
+                console.log("I posted the Daily Heathcliff");
+            } catch (error) {
+                console.error("I experienced a message error:", error);
+            }
+        }
+    });
 
-		if (separatedLine[1] === cronTime) {
-			try{
-				await channel.send("Heathcliff comic from " + data.publishDate + ":\n" + data.imageUrl);
-				console.log("I posted the Daily Heathcliff");
-			}
-			catch{
-				console.log("I experienced a message error");
-				return;
-			}
-		}
-	});
-	return;
-	})
-	.catch(error => {
-		console.error("Fetching error:", error);
-	});
-
+    // Close the file after processing
+    file.on('close', () => {
+        // File closed silently
+    });
 }
 
 client.login(token);
