@@ -116,14 +116,14 @@ cron.schedule('00 00 * * * *', async () => {
 
 let newComicUploaded = true;
 searchDate = new Date();
-searchDate.setDate(searchDate.getDate() + 1);
 searchDate.setHours(0, 0, 0, 0);
+searchDate.setDate(searchDate.getDate());
 
-cron.schedule('0 0 23 * * *', async () => {
+cron.schedule('00 00 23 * * *', async () => {
     newComicUploaded = false;
     searchDate = new Date();
-    searchDate.setDate(searchDate.getDate() + 1); // Set to tomorrow's date
     searchDate.setHours(0, 0, 0, 0); // Reset time to midnight
+    searchDate.setDate(searchDate.getDate());
 });
 
 cron.schedule('0 */30 * * * *', async () => {
@@ -139,6 +139,10 @@ cron.schedule('0 */30 * * * *', async () => {
             await deleteImage('png holding/' + comicTitle + '.png');
             newComicUploaded = true;
             console.log("New comic uploaded:", comicTitle);
+        }
+        else 
+        {
+            console.log("No new comic uploaded. Current date:", comicDate, "Search date:", searchDate);
         }
     }
     
@@ -176,15 +180,13 @@ async function downloadImage(url, filepath) {
 
 const os = require('os'); // Import the os module to detect the platform
 async function comicScrape(property) {
-    const puppeteer = require('puppeteer');
-
     // Detect if the program is running on a Raspberry Pi
     const isRaspberryPi = os.platform() === 'linux' && os.arch() === 'arm';
 
     // Launch Puppeteer with Raspberry Pi-specific options if running on a Pi
     if (!browser) {
         browser = await puppeteer.launch({
-            headless: true,
+            headless: false,
             executablePath: isRaspberryPi ? '/usr/bin/chromium-browser' : undefined, // Use system Chromium on Pi
             args: isRaspberryPi
                 ? [
@@ -209,12 +211,12 @@ async function comicScrape(property) {
         await page.goto("https://creators.com/read/heathcliff", { waitUntil: "domcontentloaded" });
 
         // Scrape the content of the meta tag with the specified property
-        const comicURL = await page.evaluate((property) => {
+        const comicProperty = await page.evaluate((property) => {
             const metaTag = document.querySelector(`meta[property="${property}"]`);
             return metaTag ? metaTag.content : null;
         }, property);
 
-        return comicURL;
+        return comicProperty;
     } catch (error) {
         console.error("Error during web scraping:", error);
         return null;
