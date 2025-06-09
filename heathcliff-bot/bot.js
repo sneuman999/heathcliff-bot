@@ -114,15 +114,16 @@ cron.schedule('00 00 * * * *', async () => {
 	await cronDaily(hourString);
 });
 
-let newComicUploaded = true;
+let newComicUploaded = false;
 searchDate = new Date();
-searchDate.setHours(0, 0, 0, 0);
+searchDate.setUTCHours(0, 0, 0, 0);
 searchDate.setDate(searchDate.getDate());
 
 cron.schedule('00 00 23 * * *', async () => {
     newComicUploaded = false;
     searchDate = new Date();
-    searchDate.setHours(0, 0, 0, 0); // Reset time to midnight
+    searchDate.setDate(searchDate.getDate()+1);
+    searchDate.setUTCHours(0, 0, 0, 0); // Reset time to midnight
     searchDate.setDate(searchDate.getDate());
 });
 
@@ -130,14 +131,15 @@ cron.schedule('0 */30 * * * *', async () => {
     if (!newComicUploaded) {
         let comicTitle = (await comicScrape('article:published_time')).toString().substring(0, 10);
         let comicDate =  new Date(comicTitle);
-        comicDate.setHours(0, 0, 0, 0); // Reset time to midnight
+        comicDate.setUTCHours(0, 0, 0, 0); // Reset time to midnight
         if (comicDate.getTime() === searchDate.getTime())
-        {
+        { 
             let comicURL = await comicScrape('og:image');
         	await downloadImage(comicURL, 'png holding/' + comicTitle + '.png');
 	        await uploadImage('png holding/' + comicTitle + '.png', 'heathcliff-comics', comicTitle + '.png');
             await deleteImage('png holding/' + comicTitle + '.png');
             newComicUploaded = true;
+            console.log("New comic uploaded. Current date:", comicDate, "Search date:", searchDate);
             console.log("New comic uploaded:", comicTitle);
         }
         else 
