@@ -7,7 +7,10 @@ module.exports = {
 	async execute(interaction) {
 
 		await interaction.deferReply();
-		const currentdate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
+		const now = new Date();
+		const currentdate = now.getFullYear() + '-' +
+  			String(now.getMonth() + 1).padStart(2, '0') + '-' +
+ 			String(now.getDate()).padStart(2, '0');
 		var apiURL = String("https://storage.googleapis.com/heathcliff-comics/" + currentdate +".png");
 		try {
 			interaction.editReply({content: "Heathcliff comic for today:\n" + apiURL});
