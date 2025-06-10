@@ -114,19 +114,19 @@ cron.schedule('00 00 * * * *', async () => {
 	await cronDaily(hourString);
 });
 
-let newComicUploaded = false;
+let newComicUploaded = true;
 searchDate = new Date();
 searchDate.setUTCHours(0, 0, 0, 0);
-searchDate.setDate(searchDate.getDate());
 
+//Cron job to start the search for a new comic at 11pm
 cron.schedule('00 00 23 * * *', async () => {
     newComicUploaded = false;
     searchDate = new Date();
     searchDate.setDate(searchDate.getDate()+1);
     searchDate.setUTCHours(0, 0, 0, 0); // Reset time to midnight
-    searchDate.setDate(searchDate.getDate());
 });
 
+//Cron job to check for a new comic every 30 minutes
 cron.schedule('0 */30 * * * *', async () => {
     if (!newComicUploaded) {
         let comicTitle = (await comicScrape('article:published_time')).toString().substring(0, 10);
@@ -139,7 +139,6 @@ cron.schedule('0 */30 * * * *', async () => {
 	        await uploadImage('png holding/' + comicTitle + '.png', 'heathcliff-comics', comicTitle + '.png');
             await deleteImage('png holding/' + comicTitle + '.png');
             newComicUploaded = true;
-            console.log("New comic uploaded. Current date:", comicDate, "Search date:", searchDate);
             console.log("New comic uploaded:", comicTitle);
         }
         else 
@@ -188,7 +187,7 @@ async function comicScrape(property) {
     // Launch Puppeteer with Raspberry Pi-specific options if running on a Pi
     if (!browser) {
         browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             executablePath: isRaspberryPi ? '/usr/bin/chromium-browser' : undefined, // Use system Chromium on Pi
             args: isRaspberryPi
                 ? [

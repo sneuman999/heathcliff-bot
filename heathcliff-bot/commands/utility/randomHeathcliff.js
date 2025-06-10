@@ -1,4 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
+const { Storage } = require('@google-cloud/storage');
+const { servicekey } = require('./config.json');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -6,33 +8,27 @@ module.exports = {
 		.setDescription("posts a random Heathcliff comic from the vault."),
 		async execute(interaction) {
 
-			var apiURL = String("https://heathcliff-api.winget.cloud/comic/original/random?comicType=heathcliff");
-	
-			fetch(apiURL)
-			.then(response => {
-			  if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
-			  }
-			  return response.json(); 
-			})
-			.then(data => {
-			  //console.log(data); // Process the data
-	
-			  try {
-				interaction.reply("Heathcliff comic from " + data.publishDate + ":\n" + data.imageUrl);
+			  const storage = new Storage({
+				keyFilename: servicekey,
+  			});	
+			const bucketName = 'heathcliff-comics';		
+			const bucket = storage.bucket(bucketName);
+
+			const [files] = await bucket.getFiles();
+			const randomIndex = Math.floor(Math.random() * files.length);
+			const randomFile = files[randomIndex].name;
+			const fileDate = randomFile.slice(0, -4);
+			var url = `https://storage.googleapis.com/${bucketName}/${randomFile}`;
+			
+			try {
+				interaction.reply("Heathcliff comic from " + fileDate + ":\n" + url);
 				console.log("I posted a Random Heathcliff");
 			}
 			catch (err) {
-				//await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
 				console.log("I experienced a message error");
 				return;
 			}
-			  
-			})
-			.catch(error => {
-			  console.error("Fetching error:", error);
-			});
-	
+
 			return;
 		},
 	};
