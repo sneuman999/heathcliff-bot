@@ -122,12 +122,12 @@ searchDate.setUTCHours(0, 0, 0, 0);
 cron.schedule('00 00 23 * * *', async () => {
     newComicUploaded = false;
     searchDate = new Date();
-    searchDate.setDate(searchDate.getDate()+1);
+    searchDate.setDate(searchDate.getDate());
     searchDate.setUTCHours(0, 0, 0, 0); // Reset time to midnight
 });
 
 //Cron job to check for a new comic every 30 minutes
-cron.schedule('0 */30 * * * *', async () => {
+cron.schedule('0 */10 * * * *', async () => {
     if (!newComicUploaded) {
         let comicTitle = (await comicScrape('article:published_time')).toString().substring(0, 10);
         let comicDate =  new Date(comicTitle);
