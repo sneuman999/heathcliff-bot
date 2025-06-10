@@ -1,35 +1,41 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { Storage } = require('@google-cloud/storage');
-const { servicekey } = require('./config.json');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName("randomheathcliff")
-		.setDescription("posts a random Heathcliff comic from the vault."),
-		async execute(interaction) {
+    data: new SlashCommandBuilder()
+        .setName("randomheathcliff")
+        .setDescription("posts a random Heathcliff comic from the vault."),
+    async execute(interaction) {
+        await interaction.deferReply();
 
-			await interaction.deferReply();
-			  const storage = new Storage({
-				keyFilename: servicekey,
-  			});	
-			const bucketName = 'heathcliff-comics';		
-			const bucket = storage.bucket(bucketName);
+        const listPath = path.join(__dirname, 'heathcliffFiles.json');
+        let heathcliffFiles;
+        try {
+            heathcliffFiles = JSON.parse(fs.readFileSync(listPath, 'utf8'));
+        } catch (err) {
+            await interaction.editReply({ content: "Could not load Heathcliff file list." });
+            return;
+        }
 
-			const [files] = await bucket.getFiles();
-			const randomIndex = Math.floor(Math.random() * files.length);
-			const randomFile = files[randomIndex].name;
-			const fileDate = randomFile.slice(0, -4);
-			var url = `https://storage.googleapis.com/${bucketName}/${randomFile}`;
-			
-			try {
-				interaction.editReply({content : "Heathcliff comic from " + fileDate + ":\n" + url});
-				console.log("I posted a Random Heathcliff");
-			}
-			catch (err) {
-				console.log("I experienced a message error");
-				return;
-			}
+        if (!heathcliffFiles || heathcliffFiles.length === 0) {
+            await interaction.editReply({ content: "No Heathcliff comics found!" });
+            return;
+        }
 
-			return;
-		},
-	};
+        const bucketName = 'heathcliff-comics';
+        const randomIndex = Math.floor(Math.random() * heathcliffFiles.length);
+        const randomFile = heathcliffFiles[randomIndex];
+        const fileDate = randomFile.slice(0, -4);
+        const url = `https://storage.googleapis.com/${bucketName}/${randomFile}`;
+
+        try {
+            await interaction.editReply({ content: "Heathcliff comic from " + fileDate + ":\n" + url });
+            console.log("I posted a Random Heathcliff");
+        } catch (err) {
+            console.log("I experienced a message error");
+            return;
+        }
+        return;
+    },
+};

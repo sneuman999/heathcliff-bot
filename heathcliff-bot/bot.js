@@ -140,6 +140,23 @@ cron.schedule('0 */10 * * * *', async () => {
             await deleteImage('png holding/' + comicTitle + '.png');
             newComicUploaded = true;
             console.log("New comic uploaded:", comicTitle);
+
+            // Update heathcliffFiles.json
+            try {
+                const filesPath = require('path').join(__dirname, 'commands', 'utility', 'heathcliffFiles.json');
+                let filesList = [];
+                if (fs.existsSync(filesPath)) {
+                    filesList = JSON.parse(fs.readFileSync(filesPath, 'utf8'));
+                }
+                // Only add if not already present
+                if (!filesList.includes(comicTitle + '.png')) {
+                    filesList.push(comicTitle + '.png');
+                    fs.writeFileSync(filesPath, JSON.stringify(filesList, null, 2));
+                    console.log("heathcliffFiles.json updated.");
+                }
+            } catch (err) {
+                console.error("Failed to update heathcliffFiles.json:", err);
+            }
         }
         else 
         {
