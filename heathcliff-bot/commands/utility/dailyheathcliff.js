@@ -6,9 +6,18 @@ module.exports = {
 		.setDescription("posts Heathcliff comic for today's date"),
 	async execute(interaction) {
 
+		await interaction.deferReply();
 		const currentdate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
 		var apiURL = String("https://storage.googleapis.com/heathcliff-comics/" + currentdate +".png");
-		interaction.reply("Heathcliff comic for today:\n" + apiURL);
+		try {
+			interaction.editReply({content: "Heathcliff comic for today:\n" + apiURL});
+			console.log("I posted the Daily Heathcliff");
+		}
+		catch (err) {
+			console.log("I experienced a message error");
+			return;
+		}
+
 
 		// fetch(apiURL)
 		// .then(response => {

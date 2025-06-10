@@ -16,6 +16,7 @@ module.exports = {
 	,
 
 	async execute(interaction) {
+		await interaction.deferReply();
 		const channelId = interaction.channelId;
 		const channelName = interaction.channel.name;
 		const hour = interaction.options.getInteger('hour');
@@ -29,7 +30,7 @@ module.exports = {
 		fs.readFile('channels.txt', 'utf8', function (err, data) {
 			if (!(data.includes(channelId))) {
 				try {
-					interaction.reply(channelName + " will now receive the daily Heathcliff comic at " + hourString +  ":00 CST every day!");
+					interaction.editReply({content : channelName + " will now receive the daily Heathcliff comic at " + hourString +  ":00 CST every day!"});
 					fs.appendFile('channels.txt', channelId + ", " + hourString + "\r\n", function (err) {
 						if (err) throw err;
 					});
@@ -42,7 +43,7 @@ module.exports = {
 			}
 			else {
 				try {
-					interaction.reply(channelName + " is already receiving the daily Heathcliff comic!");
+					interaction.editReply({content: channelName + " is already receiving the daily Heathcliff comic!"});
 				}
 				catch (err) {
 					//interaction.author.send("I don't have permission to post in " + channelName + ". Ask your Server Admin for help");

@@ -9,12 +9,14 @@ module.exports = {
 		.setDMPermission(false)
 	,
 	async execute(interaction) {
+		await interaction.deferReply();
+
 		const fs = require('fs');
 		const channelId = interaction.channelId;
 		const channelName = interaction.channel.name;
 
 		try {
-			await interaction.reply(channelName + " will no longer receive the daily Heathcliff comic.");
+			await interaction.editReply(channelName + " will no longer receive the daily Heathcliff comic.");
 		}
 		catch (err) {
 			//await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");

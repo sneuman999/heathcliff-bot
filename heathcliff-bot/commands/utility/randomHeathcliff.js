@@ -8,6 +8,7 @@ module.exports = {
 		.setDescription("posts a random Heathcliff comic from the vault."),
 		async execute(interaction) {
 
+			await interaction.deferReply();
 			  const storage = new Storage({
 				keyFilename: servicekey,
   			});	
@@ -21,7 +22,7 @@ module.exports = {
 			var url = `https://storage.googleapis.com/${bucketName}/${randomFile}`;
 			
 			try {
-				interaction.reply("Heathcliff comic from " + fileDate + ":\n" + url);
+				interaction.editReply({content : "Heathcliff comic from " + fileDate + ":\n" + url});
 				console.log("I posted a Random Heathcliff");
 			}
 			catch (err) {

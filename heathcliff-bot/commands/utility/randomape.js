@@ -14,9 +14,10 @@ module.exports = {
     const imageUrl = randomComic.imageUrl;
 	const publishDate = randomComic.publishDate;
 
+	interaction.deferReply();
 	try {
-		interaction.reply("Heathcliff comic from " + publishDate + ":\n" + imageUrl);
-		console.log("I posted the an Ape!");
+		interaction.editReply({context: "Heathcliff comic from " + publishDate + ":\n" + imageUrl});
+		console.log("I posted an Ape!");
 	}
 	catch (err) {
 		//await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
