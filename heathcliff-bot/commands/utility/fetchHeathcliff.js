@@ -6,16 +6,19 @@ module.exports = {
 		.setDescription("posts Heathcliff comic for a specific date")
 		.addIntegerOption(option =>
 			option.setName('month')
+                .setDescription('month of the comic you want to fetch. Input in 1-12 format.')
 				.setMinValue(1)
 				.setMaxValue(12)
 				.setRequired(true))
 		.addIntegerOption(option =>
 			option.setName('day')
+                .setDescription('day of the comic you want to fetch. Input in 1-31 format.')
 				.setMinValue(1)
 				.setMaxValue(31)
 				.setRequired(true))
 		.addIntegerOption(option =>
 			option.setName('year')
+                .setDescription('year of the comic you want to fetch. Input in 4 digit format.')
 				.setMinValue(2003)
 				.setMaxValue(2026)
                 .setRequired(true))
