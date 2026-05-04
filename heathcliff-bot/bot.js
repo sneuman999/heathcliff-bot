@@ -114,15 +114,15 @@ cron.schedule('00 00 * * * *', async () => {
 	await cronDaily(hourString);
 });
 
-let newComicUploaded = true;
+let newComicUploaded = false;
 searchDate = new Date();
 searchDate.setUTCHours(0, 0, 0, 0);
 
 //Cron job to start the search for a new comic at 11pm
-cron.schedule('00 00 23 * * *', async () => {
+cron.schedule('00 30 23 * * *', async () => {
     newComicUploaded = false;
+    //this records in UTC, which will be "tomorrow".
     searchDate = new Date();
-    searchDate.setDate(searchDate.getDate());
     searchDate.setUTCHours(0, 0, 0, 0); // Reset time to midnight
 });
 

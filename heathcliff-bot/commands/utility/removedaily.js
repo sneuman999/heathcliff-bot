@@ -17,6 +17,7 @@ module.exports = {
 
 		try {
 			await interaction.editReply(channelName + " will no longer receive the daily Heathcliff comic.");
+			console.log(channelId + " has unsubscribed ")
 		}
 		catch (err) {
 			//await message.author.send("I don't have permission to post in " + message.channel.name + ". Ask your Server Admin for help");
