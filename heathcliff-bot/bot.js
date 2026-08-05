@@ -3,7 +3,7 @@ require('dotenv').config();
 
 const fs = require('node:fs');
 const path = require('node:path');
-const puppeteer = require('puppeteer');
+const axios = require('axios');
 const https = require('node:https');
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 const { Storage } = require('@google-cloud/storage');
@@ -15,8 +15,7 @@ const client = new Client({
 });
 const { token , servicekey } = require('./config.json');
 
-let browser;
-let page;
+let currentReadline = null;
 
 client.commands = new Collection();
 
@@ -69,24 +68,15 @@ client.on('ready', async () => {
 process.on('SIGINT', gracefulShutdown);
 async function gracefulShutdown() {
     console.log("Graceful shutdown initiated...");
-
-    // Close Puppeteer browser instance if it exists
-    if (browser) {
-        try {
-            await browser.close();
-            console.log("Puppeteer browser instance closed.");
-        } catch (error) {
-            console.error("Error closing Puppeteer browser:", error);
-        }
-    }
-
-    // Close any open file streams (e.g., readline interface)
-    if (typeof file !== 'undefined' && file) {
+    // Close any open readline interface
+    if (currentReadline) {
      try {
-            file.close();
+            currentReadline.close();
             console.log("Readline interface closed.");
         } catch (error) {
          console.error("Error closing readline interface:", error);
+        } finally {
+            currentReadline = null;
         }
     }
 
@@ -102,7 +92,7 @@ async function gracefulShutdown() {
 var cron = require('node-cron');
 
 //Cron job to post daily Heathcliff comic
-cron.schedule('00 00 * * * *', async () => {
+cron.schedule('0 0 * * * *', async () => {
 	const date = new Date();
 	const hour = date.getHours();
 	let hourString = hour.toString();
@@ -126,44 +116,57 @@ cron.schedule('00 30 23 * * *', async () => {
     searchDate.setUTCHours(0, 0, 0, 0); // Reset time to midnight
 });
 
-//Cron job to check for a new comic every 30 minutes
+//Cron job to check for a new comic every 10 minutes
 cron.schedule('0 */10 * * * *', async () => {
-    if (!newComicUploaded) {
-        let comicTitle = (await comicScrape('article:published_time')).toString().substring(0, 10);
-        let comicDate =  new Date(comicTitle);
-        comicDate.setUTCHours(0, 0, 0, 0); // Reset time to midnight
-        if (comicDate.getTime() === searchDate.getTime())
-        { 
-            let comicURL = await comicScrape('og:image');
-        	await downloadImage(comicURL, 'png holding/' + comicTitle + '.png');
-	        await uploadImage('png holding/' + comicTitle + '.png', 'heathcliff-comics', comicTitle + '.png');
-            await deleteImage('png holding/' + comicTitle + '.png');
-            newComicUploaded = true;
-            console.log("New comic uploaded:", comicTitle);
+    try {
+        if (!newComicUploaded) {
+            const titleProp = await comicScrape('article:published_time');
+            if (!titleProp) {
+                console.log("comicScrape returned null for published_time; skipping this cycle.");
+                return;
+            }
 
-            // Update heathcliffFiles.json
-            try {
-                const filesPath = require('path').join(__dirname, 'commands', 'utility', 'heathcliffFiles.json');
-                let filesList = [];
-                if (fs.existsSync(filesPath)) {
-                    filesList = JSON.parse(fs.readFileSync(filesPath, 'utf8'));
+            const comicTitle = titleProp.toString().substring(0, 10);
+            const comicDate = new Date(comicTitle);
+            comicDate.setUTCHours(0, 0, 0, 0); // Reset time to midnight
+
+            if (comicDate.getTime() === searchDate.getTime()) {
+                const comicURL = await comicScrape('og:image');
+                if (!comicURL) {
+                    console.error("comicScrape returned null for og:image; cannot download.");
+                    return;
                 }
-                // Only add if not already present
-                if (!filesList.includes(comicTitle + '.png')) {
-                    filesList.push(comicTitle + '.png');
-                    fs.writeFileSync(filesPath, JSON.stringify(filesList, null, 2));
-                    console.log("heathcliffFiles.json updated.");
+
+                const localPath = `png holding/${comicTitle}.png`;
+                await downloadImage(comicURL, localPath);
+                await uploadImage(localPath, 'heathcliff-comics', `${comicTitle}.png`);
+                await deleteImage(localPath);
+
+                newComicUploaded = true;
+                console.log("New comic uploaded:", comicTitle);
+
+                // Update heathcliffFiles.json
+                try {
+                    const filesPath = require('path').join(__dirname, 'commands', 'utility', 'heathcliffFiles.json');
+                    let filesList = [];
+                    if (fs.existsSync(filesPath)) {
+                        filesList = JSON.parse(fs.readFileSync(filesPath, 'utf8'));
+                    }
+                    if (!filesList.includes(`${comicTitle}.png`)) {
+                        filesList.push(`${comicTitle}.png`);
+                        fs.writeFileSync(filesPath, JSON.stringify(filesList, null, 2));
+                        console.log("heathcliffFiles.json updated.");
+                    }
+                } catch (err) {
+                    console.error("Failed to update heathcliffFiles.json:", err);
                 }
-            } catch (err) {
-                console.error("Failed to update heathcliffFiles.json:", err);
+            } else {
+                console.log("No new comic uploaded. Current date:", comicDate, "Search date:", searchDate);
             }
         }
-        else 
-        {
-            console.log("No new comic uploaded. Current date:", comicDate, "Search date:", searchDate);
-        }
+    } catch (err) {
+        console.error("Error in scheduled comic check:", err);
     }
-    
 });
 
 async function downloadImage(url, filepath) {
@@ -198,47 +201,50 @@ async function downloadImage(url, filepath) {
 
 const os = require('os'); // Import the os module to detect the platform
 async function comicScrape(property) {
-    // Detect if the program is running on a Raspberry Pi
-    const isRaspberryPi = os.platform() === 'linux' && os.arch() === 'arm';
+    const url = 'https://creators.com/read/heathcliff';
+    const maxAttempts = 3;
+    const timeoutMs = 15000; // 15s per request
+    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36';
 
-    // Launch Puppeteer with Raspberry Pi-specific options if running on a Pi
-    if (!browser) {
-        browser = await puppeteer.launch({
-            headless: true,
-            executablePath: isRaspberryPi ? '/usr/bin/chromium-browser' : undefined, // Use system Chromium on Pi
-            args: isRaspberryPi
-                ? [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--disable-gpu',
-                    '--no-zygote',
-                    '--single-process',
-                ]
-                : [], // No special args for non-Pi systems
-        });
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const resp = await axios.get(url, {
+                timeout: timeoutMs,
+                headers: { 'User-Agent': userAgent, 'Accept': 'text/html' },
+                validateStatus: status => status >= 200 && status < 400
+            });
+
+            const html = resp.data;
+            // Regex to find <meta property="..." content="..."> (case-insensitive)
+            const re = new RegExp(`<meta[^>]*property=["']${property}["'][^>]*content=["']([^"']*)["'][^>]*>`, 'i');
+            const m = html.match(re);
+            if (m && m[1]) {
+                return m[1];
+            }
+
+            // Fallback: sometimes sites use meta[name="..."] instead of property
+            const reName = new RegExp(`<meta[^>]*name=["']${property}["'][^>]*content=["']([^"']*)["'][^>]*>`, 'i');
+            const m2 = html.match(reName);
+            if (m2 && m2[1]) {
+                return m2[1];
+            }
+
+            // If no meta tag found, return null (no point retrying)
+            return null;
+        } catch (err) {
+            console.error(`comicScrape (axios) attempt ${attempt} error:`, err.message || err);
+
+            // On last attempt return null
+            if (attempt === maxAttempts) {
+                return null;
+            }
+
+            // Backoff before retrying
+            await new Promise(res => setTimeout(res, 1000 * attempt));
+        }
     }
 
-    if (!page) {
-        page = await browser.newPage();
-    }
-
-    try {
-        // Navigate to the Heathcliff comic page
-        await page.goto("https://creators.com/read/heathcliff", { waitUntil: "domcontentloaded" });
-
-        // Scrape the content of the meta tag with the specified property
-        const comicProperty = await page.evaluate((property) => {
-            const metaTag = document.querySelector(`meta[property="${property}"]`);
-            return metaTag ? metaTag.content : null;
-        }, property);
-
-        return comicProperty;
-    } catch (error) {
-        console.error("Error during web scraping:", error);
-        return null;
-    }
+    return null;
 }
 
 async function uploadImage(imagePath, bucketName, imageName) {
@@ -279,31 +285,41 @@ function cronDaily(cronTime) {
     const currentdate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
     const comicURL = `https://storage.googleapis.com/heathcliff-comics/${currentdate}.png`;
 
+    // Close previous reader if open
+    if (currentReadline) {
+        try { currentReadline.close(); } catch (e) {}
+        currentReadline = null;
+    }
+
     // Create a readable stream from the file
-    const file = readline.createInterface({
-        input: fs.createReadStream('channels.txt'),
+    currentReadline = readline.createInterface({
+        input: fs.createReadStream(path.join(__dirname, 'channels.txt')),
         output: process.stdout,
         terminal: false
     });
 
     // Process each line in the file
-    file.on('line', async (line) => {
-        const separatedLine = line.split(', ');
+    currentReadline.on('line', async (line) => {
+        const separatedLine = line.split(',').map(s => s.trim());
         const channel = client.channels.cache.get(separatedLine[0]);
 
         if (separatedLine[1] === cronTime) {
             try {
-                await channel.send(`Heathcliff comic for today:\n${comicURL}`);
-                console.log("I posted the Daily Heathcliff");
+                if (channel) {
+                    await channel.send(`Heathcliff comic for today:\n${comicURL}`);
+                    console.log("I posted the Daily Heathcliff");
+                } else {
+                    console.warn(`Channel ${separatedLine[0]} not found in cache.`);
+                }
             } catch (error) {
                 console.error("I experienced a message error:", error);
             }
         }
     });
 
-    // Close the file after processing
-    file.on('close', () => {
-        // File closed silently
+    // Clear reference when closed
+    currentReadline.on('close', () => {
+        currentReadline = null;
     });
 }
 
